@@ -1,5 +1,5 @@
 {
-    "name": "hyperf/config-aliyun-acm",
+    "name": "dleno/config-aliyun-acm",
     "description": "An aliyun acm adapter for Hyperf config component.",
     "license": "MIT",
     "keywords": [
