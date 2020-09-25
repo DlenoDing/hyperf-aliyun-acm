@@ -16,8 +16,9 @@ return [
     'endpoint' => env('ALIYUN_ACM_ENDPOINT', 'acm.aliyun.com'),
     'namespace' => env('ALIYUN_ACM_NAMESPACE', ''),
     'data_id' => env('ALIYUN_ACM_DATA_ID', ''),
-    'group' => env('ALIYUN_ACM_GROUP', 'DEFAULT_GROUP'),
+    'group' => env('ALIYUN_ACM_GROUP', ''),
     'access_key' => env('ALIYUN_ACM_AK', ''),
     'secret_key' => env('ALIYUN_ACM_SK', ''),
     'ecs_ram_role' => env('ALIYUN_ACM_RAM_ROLE', ''),
+    'process_file' => env('ALIYUN_PROCESS_FILE', BASE_PATH.'/runtime/aliyun.acm.process'),
 ];

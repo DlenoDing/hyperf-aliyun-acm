@@ -18,9 +18,6 @@ use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\Event\Contract\ListenerInterface;
 use Hyperf\Framework\Event\BeforeWorkerStart;
 use Hyperf\Process\Event\BeforeProcessHandle;
-use Hyperf\Utils\Coordinator\Constants;
-use Hyperf\Utils\Coordinator\CoordinatorManager;
-use Hyperf\Utils\Coroutine;
 use Psr\Container\ContainerInterface;
 
 class BootProcessListener implements ListenerInterface
@@ -58,33 +55,12 @@ class BootProcessListener implements ListenerInterface
 
     public function process(object $event)
     {
+        //Worker,Process启动前同步配置到对应进程
         if (! $this->config->get('aliyun_acm.enable', false)) {
             return;
         }
-
         if ($config = $this->client->pull()) {
             $this->updateConfig($config);
-        }
-
-        if (! $this->config->get('aliyun_acm.use_standalone_process', true)) {
-            Coroutine::create(function () {
-                $interval = $this->config->get('aliyun_acm.interval', 5);
-                retry(INF, function () use ($interval) {
-                    $prevConfig = [];
-                    while (true) {
-                        $coordinator = CoordinatorManager::until(Constants::WORKER_EXIT);
-                        $workerExited = $coordinator->yield($interval);
-                        if ($workerExited) {
-                            break;
-                        }
-                        $config = $this->client->pull();
-                        if ($config !== $prevConfig) {
-                            $this->updateConfig($config);
-                        }
-                        $prevConfig = $config;
-                    }
-                }, $interval * 1000);
-            });
         }
     }
 
@@ -93,7 +69,7 @@ class BootProcessListener implements ListenerInterface
         foreach ($config as $key => $value) {
             if (is_string($key)) {
                 $this->config->set($key, $value);
-                $this->logger->debug(sprintf('Config [%s] is updated', $key));
+                $this->logger->info(sprintf('[%d]Config [%s] is updated', getmypid(), $key));
             }
         }
     }

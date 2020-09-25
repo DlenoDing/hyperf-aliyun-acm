@@ -66,14 +66,29 @@ class Client implements ClientInterface
             throw new RuntimeException('aliyun acm: Invalid http client.');
         }
 
-        // ACM config
-        $endpoint = $this->config->get('aliyun_acm.endpoint', 'acm.aliyun.com');
-        $namespace = $this->config->get('aliyun_acm.namespace', '');
-        $dataId = $this->config->get('aliyun_acm.data_id', '');
-        $group = $this->config->get('aliyun_acm.group', 'DEFAULT_GROUP');
-        $accessKey = $this->config->get('aliyun_acm.access_key', '');
-        $secretKey = $this->config->get('aliyun_acm.secret_key', '');
+        // aliyun_acm.group
+        $groups = $this->config->get('aliyun_acm.group', '');
+        if (empty($groups)) {
+            return [];
+        }
+
+        //获取服务器
+        if (! $this->servers) {
+            $endpoint = $this->config->get('aliyun_acm.endpoint', 'acm.aliyun.com');
+            // server list
+            $response = $this->client->get("http://{$endpoint}:8080/diamond-server/diamond");
+            if ($response->getStatusCode() !== 200) {
+                throw new RuntimeException('Get server list failed from Aliyun ACM.');
+            }
+            $this->servers = array_filter(explode("\n", $response->getBody()->getContents()));
+        }
+
+        // ACM config.key
+        $accessKey  = $this->config->get('aliyun_acm.access_key', '');
+        $secretKey  = $this->config->get('aliyun_acm.secret_key', '');
         $ecsRamRole = (string) $this->config->get('aliyun_acm.ecs_ram_role', '');
+
+        //获取RAM认证
         $securityToken = [];
         if (empty($accessKey) && ! empty($ecsRamRole)) {
             $securityCredentials = $this->getSecurityCredentialsWithEcsRamRole($ecsRamRole);
@@ -86,23 +101,34 @@ class Client implements ClientInterface
             }
         }
 
+        $config = [];
+        // 支持多分组拉取
+        $groups = explode(',', $groups);
+        foreach ($groups as $group) {
+            $cfg = $this->getConfigByGroup($group, $accessKey, $secretKey, $securityToken);
+            if ($cfg) {
+                $config = array_merge($config, $cfg);
+            }
+        }
+
+        return $config;
+    }
+
+    private function getConfigByGroup($group, $accessKey, $secretKey, $securityToken)
+    {
+        // ACM config
+        $namespace  = $this->config->get('aliyun_acm.namespace', '');
+        $dataId     = $this->config->get('aliyun_acm.data_id', '');
+
+
         // Sign
         $timestamp = round(microtime(true) * 1000);
         $sign = base64_encode(hash_hmac('sha1', "{$namespace}+{$group}+{$timestamp}", $secretKey, true));
 
         try {
-            if (! $this->servers) {
-                // server list
-                $response = $client->get("http://{$endpoint}:8080/diamond-server/diamond");
-                if ($response->getStatusCode() !== 200) {
-                    throw new RuntimeException('Get server list failed from Aliyun ACM.');
-                }
-                $this->servers = array_filter(explode("\n", $response->getBody()->getContents()));
-            }
             $server = $this->servers[array_rand($this->servers)];
-
             // Get config
-            $response = $client->get("http://{$server}:8080/diamond-server/config.co", [
+            $response = $this->client->get("http://{$server}:8080/diamond-server/config.co", [
                 'headers' => array_merge([
                     'Spas-AccessKey' => $accessKey,
                     'timeStamp' => $timestamp,

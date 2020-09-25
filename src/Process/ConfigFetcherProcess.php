@@ -12,17 +12,15 @@ declare(strict_types=1);
 namespace Hyperf\ConfigAliyunAcm\Process;
 
 use Hyperf\ConfigAliyunAcm\ClientInterface;
-use Hyperf\ConfigAliyunAcm\PipeMessage;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\Process\AbstractProcess;
-use Hyperf\Process\ProcessCollector;
 use Psr\Container\ContainerInterface;
 use Swoole\Server;
 
 class ConfigFetcherProcess extends AbstractProcess
 {
-    public $name = 'aliyun-acm-config-fetcher';
+    public $name = 'AliYunAcmFetcher';
 
     /**
      * @var Server
@@ -66,33 +64,40 @@ class ConfigFetcherProcess extends AbstractProcess
     public function isEnable($server): bool
     {
         return $server instanceof Server
-            && $this->config->get('aliyun_acm.enable', false)
-            && $this->config->get('aliyun_acm.use_standalone_process', true);
+            && $this->config->get('aliyun_acm.enable', false);
     }
 
     public function handle(): void
     {
         while (true) {
             $config = $this->client->pull();
-            if ($config !== $this->cacheConfig) {
+            //第一次不执行配置同步，系统首次启动时已经拉取了最新的配置
+            if (!empty($config) && is_null($this->cacheConfig)) {
                 $this->cacheConfig = $config;
-                $workerCount = $this->server->setting['worker_num'] + $this->server->setting['task_worker_num'] - 1;
-                $pipeMessage = new PipeMessage($config);
-                for ($workerId = 0; $workerId <= $workerCount; ++$workerId) {
-                    $this->server->sendMessage($pipeMessage, $workerId);
+            }
+            //配置有变更
+            if (!empty($config) && $config !== $this->cacheConfig) {
+                $this->cacheConfig = $config;
+
+                //获取当前系统的所有自定义进程PID，并以此重启，除了当前AliYunAcmFetcher进程
+                $file = config('aliyun_acm.process_file', BASE_PATH.'/runtime/aliyun.acm.process');
+                $processes = file_get_contents($file);
+                @unlink($file);
+                touch($file);
+                file_put_contents($file, getmypid()."\n", FILE_APPEND);
+                $processes = trim($processes, "\n");
+                $processes = explode("\n", $processes);
+                foreach ($processes as $process) {
+                    if ($this->process->pid == $process) {
+                        continue;
+                    }
+                    \Swoole\Process::kill((int)$process, SIGINT);
                 }
 
-                $processes = ProcessCollector::all();
-                if ($processes) {
-                    $string = serialize($pipeMessage);
-                    /** @var \Swoole\Process $process */
-                    foreach ($processes as $process) {
-                        $result = $process->exportSocket()->send($string, 10);
-                        if ($result === false) {
-                            $this->logger->error('Configuration synchronization failed. Please restart the server.');
-                        }
-                    }
-                }
+                //服务器worker,task热重启
+                $this->server->reload();
+
+                $this->logger->info('Config is updated!!');
             }
 
             sleep($this->config->get('aliyun_acm.interval', 5));
