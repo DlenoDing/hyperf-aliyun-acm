@@ -76,7 +76,10 @@ class ConfigFetcherProcess extends AbstractProcess
             }
             //第一次不执行配置同步，系统首次启动时已经拉取了最新的配置
             if (is_null($this->cacheConfig)) {
-                $this->cacheConfig = $config;
+                //初始化现有配置，用于更新时合并配置，防止配置项丢失
+                foreach ($config as $key => $value) {
+                    $this->cacheConfig[$key] = $this->config->get($key);
+                }
                 goto WHILE_STEP;
             }
             //检查配置是否有变更
