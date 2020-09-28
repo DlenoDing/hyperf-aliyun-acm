@@ -125,9 +125,9 @@ class Client implements ClientInterface
         $timestamp = round(microtime(true) * 1000);
         $sign = base64_encode(hash_hmac('sha1', "{$namespace}+{$group}+{$timestamp}", $secretKey, true));
 
-        try {
-            $server = $this->servers[array_rand($this->servers)];
-            // Get config
+        $server = $this->servers[array_rand($this->servers)];
+        // Get config
+        try{
             $response = $this->client->get("http://{$server}:8080/diamond-server/config.co", [
                 'headers' => array_merge([
                     'Spas-AccessKey' => $accessKey,
@@ -141,18 +141,27 @@ class Client implements ClientInterface
                     'group' => $group,
                 ],
             ]);
-            if ($response->getStatusCode() !== 200) {
-                throw new RuntimeException('Get config failed from Aliyun ACM.');
+        } catch (GuzzleHttp\Exception\ClientException $e) {
+            if ($e->getCode() == 404) {
+                $this->logger->warning(sprintf('Config Group[%s] Not Exists', $group));
+            } else {
+                $this->logger->warning(sprintf('%s[line:%d] in %s', $e->getMessage(), $e->getLine(), $e->getFile()));
             }
-            $content = $response->getBody()->getContents();
-            if (! $content) {
-                return [];
-            }
-            return Json::decode($content);
-        } catch (\Throwable $throwable) {
-            $this->logger->error(sprintf('%s[line:%d] in %s', $throwable->getMessage(), $throwable->getLine(), $throwable->getFile()));
+            return [];
+        } catch (\Exception $e) {
+            $this->logger->error(sprintf('%s[line:%d] in %s', $e->getMessage(), $e->getLine(), $e->getFile()));
             return [];
         }
+
+        if ($response->getStatusCode() !== 200) {
+            $this->logger->error('Get config failed from Aliyun ACM.');
+            return [];
+        }
+        $content = $response->getBody()->getContents();
+        if (! $content) {
+            return [];
+        }
+        return Json::decode($content);
     }
 
     /**
