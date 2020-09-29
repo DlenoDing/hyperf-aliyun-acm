@@ -61,10 +61,9 @@ class ConfigFetcherProcess extends AbstractProcess
         parent::bind($server);
     }
 
-    public function isEnable($server): bool
+    public function isEnable(): bool
     {
-        return $server instanceof Server
-            && $this->config->get('aliyun_acm.enable', false);
+        return $this->config->get('aliyun_acm.enable', false);
     }
 
     public function handle(): void
