@@ -61,6 +61,9 @@
     "bin": [
     ],
     "scripts": {
+        "post-autoload-dump": [
+            "mv -f vendor/dleno/hyperf-aliyun-acm/other/AbstractProcess.php vendor/hyperf/process/src/AbstractProcess.php"
+        ],
         "cs-fix": "php-cs-fixer fix $1",
         "test": "phpunit --colors=always"
     }
