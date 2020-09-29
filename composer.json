@@ -61,8 +61,16 @@
     "bin": [
     ],
     "scripts": {
-        "post-autoload-dump": [
+        "post-package-install": [
+            "mv -f vendor/hyperf/process/src/AbstractProcess.php vendor/dleno/hyperf-aliyun-acm/other/AbstractProcess.php.bak",
             "mv -f vendor/dleno/hyperf-aliyun-acm/other/AbstractProcess.php vendor/hyperf/process/src/AbstractProcess.php"
+        ],
+        "post-package-update": [
+            "mv -f vendor/hyperf/process/src/AbstractProcess.php vendor/dleno/hyperf-aliyun-acm/other/AbstractProcess.php.bak",
+            "mv -f vendor/dleno/hyperf-aliyun-acm/other/AbstractProcess.php vendor/hyperf/process/src/AbstractProcess.php"
+        ],
+        "pre-package-uninstall": [
+            "mv -f vendor/dleno/hyperf-aliyun-acm/other/AbstractProcess.php.bak vendor/hyperf/process/src/AbstractProcess.php"
         ],
         "cs-fix": "php-cs-fixer fix $1",
         "test": "phpunit --colors=always"
