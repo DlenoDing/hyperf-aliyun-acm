@@ -103,7 +103,7 @@ class ConfigFetcherProcess extends AbstractProcess
                 if ($this->process->pid == $process) {
                     continue;
                 }
-                \Swoole\Process::kill((int)$process, SIGINT);
+                \Swoole\Process::kill((int)$process);
             }
 
             //服务器worker,task热重启
