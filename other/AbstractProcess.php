@@ -154,6 +154,7 @@ abstract class AbstractProcess implements ProcessInterface
                         $quit = new Channel(1);
                         $this->listen($quit);
                     }
+                    $this->beforeHandle();
                     while (true) {
                         $this->handle();
                         if ($this->processIsExit) {
