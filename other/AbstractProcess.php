@@ -5,7 +5,7 @@ declare(strict_types=1);
  * This file is part of Hyperf.
  *
  * @link     https://www.hyperf.io
- * @document https://hyperf.wiki
+ * @document https://doc.hyperf.io
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
@@ -14,16 +14,10 @@ namespace Hyperf\Process;
 use Hyperf\Contract\ProcessInterface;
 use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\ExceptionHandler\Formatter\FormatterInterface;
-use Hyperf\Process\Event\AfterCoroutineHandle;
 use Hyperf\Process\Event\AfterProcessHandle;
-use Hyperf\Process\Event\BeforeCoroutineHandle;
 use Hyperf\Process\Event\BeforeProcessHandle;
 use Hyperf\Process\Event\PipeMessage;
-use Hyperf\Process\Exception\ServerInvalidException;
 use Hyperf\Process\Exception\SocketAcceptException;
-use Hyperf\Server\CoroutineServer;
-use Hyperf\Utils\Coordinator\Constants;
-use Hyperf\Utils\Coordinator\CoordinatorManager;
 use Hyperf\Utils\Coroutine;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -71,7 +65,7 @@ abstract class AbstractProcess implements ProcessInterface
     protected $event;
 
     /**
-     * @var null|SwooleProcess
+     * @var SwooleProcess
      */
     protected $process;
 
@@ -108,24 +102,9 @@ abstract class AbstractProcess implements ProcessInterface
         }
     }
 
-    public function isEnable($server): bool
+    public function isEnable(): bool
     {
         return true;
-    }
-
-    public function bind($server): void
-    {
-        if (CoroutineServer::isCoroutineServer($server)) {
-            $this->bindCoroutineServer($server);
-            return;
-        }
-
-        if ($server instanceof Server) {
-            $this->bindServer($server);
-            return;
-        }
-
-        throw new ServerInvalidException(sprintf('Server %s is invalid.', get_class($server)));
     }
 
     protected function signal()
@@ -140,7 +119,7 @@ abstract class AbstractProcess implements ProcessInterface
 
     }
 
-    protected function bindServer(Server $server): void
+    public function bind(Server $server): void
     {
         $num = $this->nums;
         for ($i = 0; $i < $num; ++$i) {
@@ -154,6 +133,7 @@ abstract class AbstractProcess implements ProcessInterface
                         $quit = new Channel(1);
                         $this->listen($quit);
                     }
+                    $this->beforeHandle();
                     while (true) {
                         $this->handle();
                         if ($this->processIsExit) {
@@ -166,15 +146,16 @@ abstract class AbstractProcess implements ProcessInterface
                             }
                         }
                     }
+
+                    $this->event && $this->event->dispatch(new AfterProcessHandle($this, $i));
                 } catch (\Throwable $throwable) {
                     $this->logThrowable($throwable);
                 } finally {
-                    $this->event && $this->event->dispatch(new AfterProcessHandle($this, $i));
                     if (isset($quit)) {
                         $quit->push(true);
                     }
                     Timer::clearAll();
-                    $this->restartInterval>0 && sleep($this->restartInterval);
+                    sleep($this->restartInterval);
                 }
             }, $this->redirectStdinStdout, $this->pipeType, $this->enableCoroutine);
             $server->addProcess($process);
@@ -182,30 +163,6 @@ abstract class AbstractProcess implements ProcessInterface
             if ($this->enableCoroutine) {
                 ProcessCollector::add($this->name, $process);
             }
-        }
-    }
-
-    protected function bindCoroutineServer($server): void
-    {
-        $num = $this->nums;
-        for ($i = 0; $i < $num; ++$i) {
-            $handler = function () use ($i) {
-                $this->event && $this->event->dispatch(new BeforeCoroutineHandle($this, $i));
-                while (true) {
-                    try {
-                        $this->handle();
-                    } catch (\Throwable $throwable) {
-                        $this->logThrowable($throwable);
-                    }
-
-                    if (CoordinatorManager::until(Constants::WORKER_EXIT)->yield($this->restartInterval)) {
-                        break;
-                    }
-                }
-                $this->event && $this->event->dispatch(new AfterCoroutineHandle($this, $i));
-            };
-
-            Coroutine::create($handler);
         }
     }
 
