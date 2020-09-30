@@ -21,8 +21,8 @@
     "require": {
         "php": ">=7.2",
         "psr/container": "^1.0",
-        "hyperf/contract": "^1.0",
-        "hyperf/guzzle": "^1.0"
+        "hyperf/contract": "~1.1.0",
+        "hyperf/guzzle": "~1.1.0"
     },
     "require-dev": {
         "hyperf/config": "~1.1.0",
@@ -52,7 +52,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "1.0-dev"
+            "dev-master": "1.1-dev"
         },
         "hyperf": {
             "config": "Hyperf\\ConfigAliyunAcm\\ConfigProvider"
