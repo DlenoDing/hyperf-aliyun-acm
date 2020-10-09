@@ -22,7 +22,8 @@
         "php": ">=7.2",
         "psr/container": "^1.0",
         "hyperf/contract": "~2.0.0",
-        "hyperf/guzzle": "~2.0.0"
+        "hyperf/guzzle": "~2.0.0",
+        "hyperf/signal": "~2.0.0"
     },
     "require-dev": {
         "hyperf/config": "~2.0.0",

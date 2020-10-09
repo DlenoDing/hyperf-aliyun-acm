@@ -46,6 +46,12 @@ class ConfigProvider
                     'source' => __DIR__ . '/../publish/aliyun_acm.php',
                     'destination' => BASE_PATH . '/config/autoload/aliyun_acm.php',
                 ],
+                [
+                    'id' => 'config',
+                    'description' => 'The config for signal.',
+                    'source' => __DIR__ . '/../publish/signal.php',
+                    'destination' => BASE_PATH . '/config/autoload/signal.php',
+                ],
             ],
         ];
     }

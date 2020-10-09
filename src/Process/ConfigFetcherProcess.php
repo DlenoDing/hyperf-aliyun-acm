@@ -23,6 +23,11 @@ class ConfigFetcherProcess extends AbstractProcess
     public $name = 'AliYunAcmFetcher';
 
     /**
+     * @var bool
+     */
+    protected static $running = true;
+
+    /**
      * @var Server
      */
     private $server;
@@ -69,7 +74,7 @@ class ConfigFetcherProcess extends AbstractProcess
 
     public function handle(): void
     {
-        while (true) {
+        while (self::isRunning()) {
             $config = $this->client->pull();
             if (empty($config)) {
                 goto WHILE_STEP;
@@ -155,5 +160,15 @@ class ConfigFetcherProcess extends AbstractProcess
             }
         }
         return $rs;
+    }
+
+    public static function isRunning(): bool
+    {
+        return static::$running;
+    }
+
+    public static function setRunning(bool $running): void
+    {
+        static::$running = $running;
     }
 }
