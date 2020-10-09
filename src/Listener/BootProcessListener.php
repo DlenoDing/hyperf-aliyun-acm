@@ -60,6 +60,9 @@ class BootProcessListener implements ListenerInterface
             return;
         }
         if ($config = $this->client->pull()) {
+            foreach ($config as $key => $value) {
+                $config[$key] = $this->arrayMerge($this->config->get($key), $value);
+            }
             $this->updateConfig($config);
         }
     }
@@ -72,5 +75,21 @@ class BootProcessListener implements ListenerInterface
                 $this->logger->info(sprintf('[%d]Config [%s] is updated', getmypid(), $key));
             }
         }
+    }
+
+    protected function arrayMerge($arr1, $arr2)
+    {
+        $rs = [];
+
+        $keys = array_unique(array_merge($arr2?array_keys($arr2):[], $arr1?array_keys($arr1):[]));
+        foreach($keys as $k){
+            $arr1[$k] = isset($arr1[$k])?$arr1[$k]:[];
+            if (isset($arr2[$k]) && is_array($arr2[$k])) {
+                $rs[$k] = $this->arrayMerge($arr1[$k], $arr2[$k]);
+            } else {
+                $rs[$k] = isset($arr2[$k])?$arr2[$k]:$arr1[$k];
+            }
+        }
+        return $rs;
     }
 }

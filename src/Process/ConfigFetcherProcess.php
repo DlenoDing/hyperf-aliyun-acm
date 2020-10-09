@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Hyperf\ConfigAliyunAcm\Process;
 
 use Hyperf\ConfigAliyunAcm\ClientInterface;
+use Hyperf\ConfigAliyunAcm\PipeMessage;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\Process\AbstractProcess;
@@ -96,6 +97,14 @@ class ConfigFetcherProcess extends AbstractProcess
             $config = $this->arrayMerge($this->cacheConfig, $config);
             //缓存配置
             $this->cacheConfig = $config;
+
+            //发送配置到worker及task进程，防止server->reload()失败的情况
+            $workerCount = $this->server->setting['worker_num'] + $this->server->setting['task_worker_num'] - 1;
+            $pipeMessage = new PipeMessage($config);
+            for ($workerId = 0; $workerId <= $workerCount; ++$workerId) {
+                $this->server->sendMessage($pipeMessage, $workerId);
+            }
+
             //获取当前系统的所有自定义进程PID，并以此重启，除了当前AliYunAcmFetcher进程
             $file = config('aliyun_acm.process_file', BASE_PATH.'/runtime/aliyun.acm.process');
             $processes = file_get_contents($file);
@@ -153,6 +162,7 @@ class ConfigFetcherProcess extends AbstractProcess
 
         $keys = array_unique(array_merge($arr2?array_keys($arr2):[], $arr1?array_keys($arr1):[]));
         foreach($keys as $k){
+            $arr1[$k] = isset($arr1[$k])?$arr1[$k]:[];
             if (isset($arr2[$k]) && is_array($arr2[$k])) {
                 $rs[$k] = $this->arrayMerge($arr1[$k], $arr2[$k]);
             } else {

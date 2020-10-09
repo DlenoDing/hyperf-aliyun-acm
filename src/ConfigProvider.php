@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Hyperf\ConfigAliyunAcm;
 
 use Hyperf\ConfigAliyunAcm\Listener\BootProcessListener;
+use Hyperf\ConfigAliyunAcm\Listener\OnPipeMessageListener;
 use Hyperf\ConfigAliyunAcm\Listener\ProcessBeforeListener;
 use Hyperf\ConfigAliyunAcm\Listener\StartServerListener;
 use Hyperf\ConfigAliyunAcm\Process\ConfigFetcherProcess;
@@ -30,6 +31,7 @@ class ConfigProvider
             'listeners' => [
                 StartServerListener::class,
                 BootProcessListener::class,
+                OnPipeMessageListener::class,
                 ProcessBeforeListener::class,
             ],
             'annotations' => [
